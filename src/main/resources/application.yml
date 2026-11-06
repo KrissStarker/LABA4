@@ -1,0 +1,28 @@
+spring:
+  config:
+    import: optional:file:.env[.properties]
+  application:
+    name: courier-delivery
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/courierdb}
+    username: ${DB_USER:courier_app}
+    password: ${DB_PASSWORD:courier_pass}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    show-sql: false
+    defer-datasource-initialization: true
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+  sql:
+    init:
+      mode: never
+server:
+  error:
+    include-message: always
+    include-stacktrace: never

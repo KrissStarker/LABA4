@@ -1,0 +1,140 @@
+### Аутентификация и проверка прав
+### Сервер: http://localhost:8080
+### Тестовые учётные записи создаются DataSeeder при запуске приложения.
+
+### 1. Получить CSRF-токен. Выполнять перед POST, PATCH и DELETE.
+GET http://localhost:8080/api/auth/csrf
+
+> {%
+    client.global.set("csrf", response.body.token);
+%}
+
+### 2. Регистрация нового отправителя (публичный запрос).
+### При повторном запуске поменяем email, иначе получим 409.
+POST http://localhost:8080/api/auth/register
+Content-Type: application/json
+X-XSRF-TOKEN: {{csrf}}
+
+{
+  "name": "Новый отправитель",
+  "email": "new.sender.lab4@example.com",
+  "password": "NewPass123"
+}
+
+### 3. Текущий пользователь — ADMIN.
+GET http://localhost:8080/api/auth/me
+Authorization: Basic YWRtaW5AZXhhbXBsZS5jb206QWRtaW4xMjMh
+
+### 4. Текущий пользователь — OPERATOR.
+GET http://localhost:8080/api/auth/me
+Authorization: Basic b3BlcmF0b3JAZXhhbXBsZS5jb206T3BlcmF0b3Ix
+
+### 5. Текущий пользователь — SENDER.
+GET http://localhost:8080/api/auth/me
+Authorization: Basic c2VuZGVyQGV4YW1wbGUuY29tOlNlbmRlcjEyMw==
+
+### USERS
+
+### 6. Список пользователей от ADMIN.
+GET http://localhost:8080/api/users
+Authorization: Basic YWRtaW5AZXhhbXBsZS5jb206QWRtaW4xMjMh
+
+### 7. Список пользователей от SENDER.
+GET http://localhost:8080/api/users
+Authorization: Basic c2VuZGVyQGV4YW1wbGUuY29tOlNlbmRlcjEyMw==
+
+### SHIPMENTS
+
+### 8. Список отправлений от OPERATOR.
+GET http://localhost:8080/api/shipments
+Authorization: Basic b3BlcmF0b3JAZXhhbXBsZS5jb206T3BlcmF0b3Ix
+
+### 9. Список отправлений от SENDER.
+GET http://localhost:8080/api/shipments
+Authorization: Basic c2VuZGVyQGV4YW1wbGUuY29tOlNlbmRlcjEyMw==
+
+### 10. Создать отправление от ADMIN.
+### senderId=3 — тестовый sender из DataSeeder при чистой БД.
+POST http://localhost:8080/api/shipments
+Authorization: Basic YWRtaW5AZXhhbXBsZS5jb206QWRtaW4xMjMh
+Content-Type: application/json
+X-XSRF-TOKEN: {{csrf}}
+
+{
+  "senderId": 3,
+  "address": "ул. Тестовая, 10",
+  "weight": 2.5,
+  "status": "CREATED"
+}
+
+### ROUTES
+
+### 11. Список маршрутов от OPERATOR.
+GET http://localhost:8080/api/routes
+Authorization: Basic b3BlcmF0b3JAZXhhbXBsZS5jb206T3BlcmF0b3Ix
+
+### 12. Создать маршрут от ADMIN.
+POST http://localhost:8080/api/routes
+Authorization: Basic YWRtaW5AZXhhbXBsZS5jb206QWRtaW4xMjMh
+Content-Type: application/json
+X-XSRF-TOKEN: {{csrf}}
+
+{
+  "routeDate": "2026-11-10",
+  "maxWeight": 20.0,
+  "status": "PLANNED"
+}
+
+### STOPS
+
+### 13. Список остановок от OPERATOR.
+GET http://localhost:8080/api/stops
+Authorization: Basic b3BlcmF0b3JAZXhhbXBsZS5jb206T3BlcmF0b3Ix
+
+### ASSIGNMENTS
+
+### 14. Список назначений от OPERATOR.
+GET http://localhost:8080/api/shipment-assignments
+Authorization: Basic b3BlcmF0b3JAZXhhbXBsZS5jb206T3BlcmF0b3Ix
+
+### BUSINESS OPERATIONS
+
+### 15. Назначить отправление на остановку от OPERATOR.
+### Используются тестовые записи с id=1; операция изменяет состояние данных.
+POST http://localhost:8080/api/operations/assign-shipment
+Authorization: Basic b3BlcmF0b3JAZXhhbXBsZS5jb206T3BlcmF0b3Ix
+Content-Type: application/json
+X-XSRF-TOKEN: {{csrf}}
+
+{
+  "shipmentId": 1,
+  "stopId": 1
+}
+
+### 16. Запустить маршрут от OPERATOR.
+### Выполнять после успешного назначения отправления.
+POST http://localhost:8080/api/operations/start-route/1
+Authorization: Basic b3BlcmF0b3JAZXhhbXBsZS5jb206T3BlcmF0b3Ix
+X-XSRF-TOKEN: {{csrf}}
+
+### 17. Закрыть маршрут от OPERATOR.
+### Выполнять после завершения всех доставок по маршруту.
+POST http://localhost:8080/api/operations/close-route/1
+Authorization: Basic b3BlcmF0b3JAZXhhbXBsZS5jb206T3BlcmF0b3Ix
+X-XSRF-TOKEN: {{csrf}}
+
+### ПРОВЕРКА ОТСУТСТВИЯ АУТЕНТИФИКАЦИИ
+### Ожидается 401 Unauthorized.
+GET http://localhost:8080/api/users
+
+### ПРОВЕРКА ОТСУТСТВИЯ CSRF
+### Ожидается 403 Forbidden (запрос не должен менять данные).
+POST http://localhost:8080/api/routes
+Authorization: Basic YWRtaW5AZXhhbXBsZS5jb206QWRtaW4xMjMh
+Content-Type: application/json
+
+{
+  "routeDate": "2026-11-11",
+  "maxWeight": 10.0,
+  "status": "PLANNED"
+}
